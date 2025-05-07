@@ -1,0 +1,169 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PyTorch Graph Visualizer</title>
+  <script src="https://unpkg.com/cytoscape@3.21.1/dist/cytoscape.min.js"></script>
+  <script src="https://unpkg.com/dagre/dist/dagre.min.js"></script>
+  <script src="https://unpkg.com/cytoscape-dagre/cytoscape-dagre.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background: #f8fafc;
+      font-family: 'Segoe UI', sans-serif;
+      color: #333;
+    }
+
+    h2 {
+      text-align: center;
+      padding: 1.2rem;
+      font-size: 2rem;
+      color: #364fc7;
+      font-weight: bold;
+    }
+
+    #cy {
+      width: 100%;
+      height: 90vh;
+      background-color: #ffffff;
+      border-top: 1px solid #dee2e6;
+    }
+
+    .btn {
+      position: fixed;
+      top: 15px;
+      right: 20px;
+      margin-left: 10px;
+      padding: 10px 16px;
+      background: #ffffff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      color: #333;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background-color: #e9ecef;
+      transform: scale(1.03);
+    }
+
+    #exportBtn {
+      right: 140px;
+    }
+  </style>
+</head>
+<body>
+  <h2>PyTorch Model Graph</h2>
+  <button class="btn" id="resetBtn">↻ Reset Layout</button>
+  <button class="btn" id="exportBtn">⬇️ Export as PNG</button>
+  <div id="cy"></div>
+
+  <script>
+    function fetchAndRender() {
+      fetch('/get_graph')
+        .then(res => res.json())
+        .then(data => {
+          renderGraph(data);
+        });
+    }
+
+    let cy;
+
+    function renderGraph(data) {
+      const nodes = data.nodes.map(n => ({
+        data: { id: n.id, label: n.label }
+      }));
+
+      const edges = data.edges.map(e => ({
+        data: { source: e.from, target: e.to }
+      }));
+
+      cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: {
+          nodes: nodes,
+          edges: edges
+        },
+        style: [
+          {
+            selector: 'node',
+            style: {
+              'label': 'data(label)',
+              'background-color': '#e0e7ff',
+              'text-valign': 'center',
+              'text-halign': 'center',
+              'color': '#1e293b',
+              'font-size': '14px',
+              'shape': 'roundrectangle',
+              'padding': '10px',
+              'width': 'label',
+              'height': 'label',
+              'border-width': 2,
+              'border-color': '#000000',
+              'shadow-blur': 6,
+              'shadow-color': '#cbd5e1',
+              'shadow-offset-x': 0,
+              'shadow-offset-y': 2
+            }
+          },
+          {
+            selector: 'edge',
+            style: {
+              'width': 3,
+              'line-color': '#000000',
+              'target-arrow-color': '#000000',
+              'target-arrow-shape': 'triangle',
+              'curve-style': 'bezier'
+            }
+          }
+        ],
+        layout: {
+          name: 'dagre',
+          rankDir: 'TB',
+          nodeSep: 200,
+          edgeSep: 20,
+          rankSep: 40,
+          animate: true,
+          animationDuration: 1000
+        }
+      });
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      cy.layout({
+        name: 'dagre',
+        rankDir: 'TB',
+        nodeSep: 200,
+        edgeSep: 20,
+        rankSep: 40,
+        animate: true,
+        animationDuration: 1000
+      }).run();
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      cy.ready(() => {
+        const pngData = cy.png({
+          full: true,
+          scale: 3.125,
+          output: 'blob',
+          bg: '#ffffff'
+        });
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(pngData);
+        a.download = 'netron_graph_300dpi.png';
+        a.click();
+      });
+    });
+
+    fetchAndRender();
+  </script>
+</body>
+</html>

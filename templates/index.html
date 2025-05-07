@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DELPHI - Neural Network Visualizer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f9f9f9;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .logo-placeholder h1 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #3f51b5;
+    }
+
+    .top-controls select {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    main {
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .section {
+      background-color: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    select, input[type="file"] {
+      padding: 8px 10px;
+      font-size: 0.85rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background-color: #3f51b5;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 8px 5px 0 0;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #5c6bc0;
+    }
+
+    #image-preview {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    #image-preview img {
+      max-width: 100%;
+      max-height: 250px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    #results {
+      font-size: 0.9rem;
+      background: #f1f1f1;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+
+    #status {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #2e7d32;
+    }
+
+    #lime-warning {
+      font-size: 0.8rem;
+      color: #f57c00;
+      font-style: italic;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-placeholder">
+        <h1>DELPHI</h1>
+      </div>
+      <div class="top-controls">
+        <select id="model-select">
+          <option value="resnet18">ResNet18</option>
+          <option value="resnet50">ResNet50</option>
+          <option value="inception_v3">Inception V3</option>
+        </select>
+        <button onclick="loadModel()">Load Model</button>
+        <p id = 'status'></p>
+      </div>
+    </header>
+
+    <main>
+      <div class="grid">
+        <div class="section">
+          <h3>Upload Image</h3>
+          <input type="file" id="image-upload" accept="image/*">
+          <div id="image-preview"></div>
+          <button onclick="predictImage()">Run Prediction</button>
+          <!-- <p id="status"></p> -->
+        </div>
+
+        <div class="section">
+          <h3>Prediction Results</h3>
+          <div id="results"></div>
+        </div>
+
+        <div class="section">
+          <h3>Visualizations</h3>
+          <button onclick="goToLayers()">View Layers</button>
+          <button onclick="goToLIME()">LIME Visualization</button>
+          <button onclick="goToGradCAM()">Grad-CAM Visualization</button>
+          <button onclick="goToModelGraph()">Model Graph</button>
+          <p id="lime-warning">Please wait for some time, the process takes a few minutes on CPU. If GPU is enabled, relax!</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function loadModel() {
+      const model = document.getElementById('model-select').value;
+      const response = await fetch('/load_model', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ model })
+      });
+
+      const result = await response.json();
+      document.getElementById('status').innerText = result.message;
+    }
+
+    document.getElementById('image-upload').addEventListener('change', async function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('image-preview').innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        }
+        reader.readAsDataURL(file);
+
+        // Create FormData and send image to server
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch('/upload_image', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    console.log(result.message);  // Optional: Show success message
+
+
+
+
+      }
+    });
+
+    async function predictImage() {
+      const imageInput = document.getElementById('image-upload').files[0];
+      if (!imageInput) {
+        alert("Please upload an image first.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('image', imageInput);
+
+      const response = await fetch('/predict', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<h4>Top 5 Predictions:</h4>' +
+        '<ol>' + result.top_5.map(r => `<li>${r.label} (${(r.probability * 100).toFixed(2)}%)</li>`).join('') +
+        '</ol>';
+    }
+
+    function goToLayers() {
+      window.location.href = '/layers';
+    }
+
+    function goToLIME() {
+      document.getElementById('lime-warning').style.display = 'block';
+      setTimeout(() => {
+        window.location.href = '/lime';
+      }, 500);
+    }
+
+    function goToGradCAM() {
+      window.location.href = '/model_gradcam';
+    }
+
+    function goToModelGraph() {
+      window.location.href = '/layers_visual';
+    }
+
+  </script>
+</body>
+</html>
