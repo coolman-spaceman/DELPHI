@@ -1,6 +1,6 @@
 # 🧠 DELPHI - Deep Neural Network Visualizer Dashboard
 
-**DELPHI** is a research-grade deep learning visual analytics dashboard. It allows you to upload images, run CNN predictions, and explore **interpretability** tools like Grad-CAM, LIME, SHAP, Captum (Integrated Gradients), and **feature-space t-SNE embeddings** — all in an elegant web interface built with Flask and PyTorch.
+**DELPHI** is a research-grade deep learning visual analytics dashboard. It allows you to upload images, run CNN predictions, and explore **interpretability** tools like Grad-CAM, LIME, all in an elegant web interface built with Flask and PyTorch.
 
 ---
 
